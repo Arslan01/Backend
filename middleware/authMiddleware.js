@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/userModel.js';
+import User from '../models/user.js';
 
 export const protect = async (req, res, next) => {
   let token;
@@ -27,11 +27,45 @@ export const protect = async (req, res, next) => {
   }
 };
 
-// Middleware to allow only admin users
-export const admin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+// Middleware for role-based access (e.g., Owner or Tenant)
+export const authorizeRole = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: `Role ${req.user.role} is not authorized to access this route` });
+    }
     next();
-  } else {
-    res.status(403).json({ message: 'Not authorized as admin' });
-  }
+  };
 };
+
+
+
+//made in class middleware
+export const Middleware = async (req, res, next) => {
+    req.headers.authorization && req.headers.authorization.startsWith("Bearer");
+    const token = req.headers.authorization.split(" ")[1];
+    console.log(token);
+    if (!token) {
+        return res.status(403).json({ message: "Token is required" });
+    }
+    await jwt.verify(token, process.env.PRIVATE_KEY, (err, user) => {
+        if (err) {
+            return res.status(403).json("You are not Authorized")
+        }
+        req.user = user;
+        next();
+    })
+}
+
+
+export const roleBasemiddleware = async (...allroles) => {
+  return async (req, res, next) => {
+    try {
+    if (!allroles.includes(req.user.role)) {
+      return res.status(403).json({ message: `Role ${req.user.role} is not authorized to access this route` });
+    }
+    next(); 
+    } catch (error) {
+      res.status(500).json({ message: 'Not authorized, failed' });
+  };
+  };
+}
